@@ -4,7 +4,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.denizcan.gelgid.data.model.User
+import com.denizcan.gelgid.data.model.Transaction
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.Query
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -85,6 +87,78 @@ class FirebaseRepository {
             } else {
                 Result.success(null)
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addTransaction(transaction: Transaction): Result<Transaction> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            // Transaction ID oluştur
+            val transactionRef = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("transactions")
+                .document()
+
+            // ID'yi ekleyerek transaction'ı güncelle
+            val transactionWithId = transaction.copy(
+                id = transactionRef.id,
+                userId = currentUser.uid
+            )
+
+            // Firestore'a kaydet
+            transactionRef.set(transactionWithId).await()
+
+            Result.success(transactionWithId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTransactions(
+        startDate: Long? = null,
+        endDate: Long? = null
+    ): Result<List<Transaction>> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            var query = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("transactions")
+                .orderBy("date", Query.Direction.DESCENDING)
+
+            // Tarih filtresi varsa ekle
+            if (startDate != null && endDate != null) {
+                query = query.whereGreaterThanOrEqualTo("date", startDate)
+                    .whereLessThanOrEqualTo("date", endDate)
+            }
+
+            val snapshot = query.get().await()
+            val transactions = snapshot.toObjects(Transaction::class.java)
+
+            Result.success(transactions)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteTransaction(transactionId: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("transactions")
+                .document(transactionId)
+                .delete()
+                .await()
+
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

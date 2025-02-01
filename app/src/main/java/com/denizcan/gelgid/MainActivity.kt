@@ -18,14 +18,21 @@ import com.denizcan.gelgid.ui.theme.GelGidTheme
 import com.denizcan.gelgid.data.repository.FirebaseRepository
 import com.denizcan.gelgid.auth.GoogleAuthUiClient
 import kotlinx.coroutines.launch
+import com.denizcan.gelgid.ui.transaction.TransactionViewModel
 
 class MainActivity : ComponentActivity() {
     private val googleAuthUiClient by lazy {
         GoogleAuthUiClient(applicationContext)
     }
 
+    private val repository by lazy { FirebaseRepository() }
+    
     private val authViewModel by lazy { 
-        AuthViewModel(FirebaseRepository(), googleAuthUiClient)
+        AuthViewModel(repository, googleAuthUiClient)
+    }
+    
+    private val transactionViewModel by lazy {
+        TransactionViewModel(repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

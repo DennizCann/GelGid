@@ -12,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.denizcan.gelgid.data.model.User
 import com.denizcan.gelgid.navigation.NavigationItem
+import com.denizcan.gelgid.ui.transaction.AddTransactionScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,12 +101,6 @@ fun HomeContent(user: User) {
         )
         // Ana sayfa içeriği buraya gelecek
     }
-}
-
-@Composable
-fun AddTransactionScreen() {
-    // Gelir/Gider ekleme ekranı
-    Text(text = "İşlem Ekle")
 }
 
 @Composable

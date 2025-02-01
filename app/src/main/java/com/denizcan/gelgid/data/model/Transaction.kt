@@ -11,6 +11,7 @@ data class Transaction(
     val amount: Double = 0.0,
     val description: String = "",
     val type: TransactionType = TransactionType.EXPENSE,
+    val category: String = "",
     val date: Long = System.currentTimeMillis(),
-    val category: String = ""
+    val createdAt: Long = System.currentTimeMillis()
 ) 
