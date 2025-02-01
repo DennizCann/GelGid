@@ -38,4 +38,32 @@ sealed class NavigationItem(
         title = "Profil",
         icon = Icons.Default.Person
     )
+    
+    object Assets : NavigationItem(
+        route = "assets",
+        title = "Varlıklar",
+        icon = Icons.Default.AccountBalance
+    )
+    
+    object AddAsset : NavigationItem(
+        route = "add_asset",
+        title = "Varlık Ekle",
+        icon = Icons.Default.Add
+    )
+    
+    object EditAsset : NavigationItem(
+        route = "edit_asset/{assetId}",
+        title = "Varlık Düzenle",
+        icon = Icons.Default.Edit
+    ) {
+        fun createRoute(assetId: String) = "edit_asset/$assetId"
+    }
+    
+    object AssetDetail : NavigationItem(
+        route = "asset_detail/{assetId}",
+        title = "Varlık Detayı",
+        icon = Icons.Default.AccountBalance
+    ) {
+        fun createRoute(assetId: String) = "asset_detail/$assetId"
+    }
 } 

@@ -8,6 +8,8 @@ import com.denizcan.gelgid.data.model.Transaction
 import com.denizcan.gelgid.data.model.TransactionType
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Query
+import com.denizcan.gelgid.data.model.Asset
+import com.denizcan.gelgid.data.model.AssetHistory
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -212,6 +214,146 @@ class FirebaseRepository {
                 .await()
 
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Varlık ekleme
+    suspend fun addAsset(asset: Asset): Result<Asset> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val assetRef = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document()
+
+            val assetWithId = asset.copy(
+                id = assetRef.id,
+                userId = currentUser.uid
+            )
+
+            assetRef.set(assetWithId).await()
+            Result.success(assetWithId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Varlıkları getirme
+    suspend fun getAssets(): Result<List<Asset>> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val snapshot = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .get()
+                .await()
+
+            val assets = snapshot.toObjects(Asset::class.java)
+            Result.success(assets)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Varlık güncelleme
+    suspend fun updateAsset(asset: Asset): Result<Asset> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document(asset.id)
+                .set(asset)
+                .await()
+
+            Result.success(asset)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Varlık silme
+    suspend fun deleteAsset(assetId: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document(assetId)
+                .delete()
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addAssetHistory(assetId: String, amount: Double, note: String = ""): Result<AssetHistory> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val historyRef = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document(assetId)
+                .collection("history")
+                .document()
+
+            val history = AssetHistory(
+                id = historyRef.id,
+                assetId = assetId,
+                amount = amount,
+                note = note
+            )
+
+            historyRef.set(history).await()
+
+            // Asset'in amount değerini güncelle
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document(assetId)
+                .update(
+                    mapOf(
+                        "amount" to amount,
+                        "updatedAt" to System.currentTimeMillis()
+                    )
+                ).await()
+
+            Result.success(history)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAssetHistory(assetId: String): Result<List<AssetHistory>> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val snapshot = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("assets")
+                .document(assetId)
+                .collection("history")
+                .orderBy("date", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            val history = snapshot.toObjects(AssetHistory::class.java)
+            Result.success(history)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -7,21 +7,36 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import com.denizcan.gelgid.data.model.Asset
+import com.denizcan.gelgid.data.model.Transaction
+import com.denizcan.gelgid.data.model.TransactionType
 import com.denizcan.gelgid.data.model.User
+import com.denizcan.gelgid.navigation.NavGraph
 import com.denizcan.gelgid.navigation.NavigationItem
+import com.denizcan.gelgid.ui.asset.AddAssetScreen
 import com.denizcan.gelgid.ui.transaction.AddTransactionScreen
 import com.denizcan.gelgid.ui.transaction.TransactionViewModel
 import com.denizcan.gelgid.ui.transaction.TransactionsScreen
+import com.denizcan.gelgid.ui.asset.AssetsScreen
+import com.denizcan.gelgid.ui.asset.AssetViewModel
+import com.denizcan.gelgid.ui.asset.AssetTypeIcon
+import com.denizcan.gelgid.ui.asset.EditAssetScreen
+import com.denizcan.gelgid.ui.asset.AssetDetailScreen
+import java.util.Calendar
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     user: User,
     onSignOut: () -> Unit,
-    transactionViewModel: TransactionViewModel
+    transactionViewModel: TransactionViewModel,
+    assetViewModel: AssetViewModel
 ) {
     var selectedItem by remember { mutableStateOf(0) }
     val navController = rememberNavController()
@@ -47,7 +62,8 @@ fun HomeScreen(
                     NavigationItem.AddTransaction,
                     NavigationItem.Transactions,
                     NavigationItem.Reports,
-                    NavigationItem.Profile
+                    NavigationItem.Profile,
+                    NavigationItem.Assets
                 )
                 
                 items.forEachIndexed { index, item ->
@@ -57,50 +73,360 @@ fun HomeScreen(
                         selected = selectedItem == index,
                         onClick = {
                             selectedItem = index
-                            navController.navigate(item.route)
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     )
                 }
             }
         }
     ) { paddingValues ->
-        NavHost(
+        NavGraph(
             navController = navController,
-            startDestination = NavigationItem.Home.route,
-            modifier = Modifier.padding(paddingValues)
+            paddingValues = paddingValues,
+            user = user,
+            transactionViewModel = transactionViewModel,
+            assetViewModel = assetViewModel
+        )
+    }
+}
+
+@Composable
+fun HomeContent(
+    user: User,
+    viewModel: TransactionViewModel,
+    assetViewModel: AssetViewModel
+) {
+    val transactions by viewModel.transactions.collectAsState()
+    val assets by assetViewModel.assets.collectAsState()
+    
+    LaunchedEffect(Unit) {
+        viewModel.getTransactions()
+        assetViewModel.getAssets()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        // Toplam Varlık Kartı
+        TotalAssetsCard(assets = assets)
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Gelir/Gider Özeti
+        MonthlyOverview(transactions = transactions)
+    }
+}
+
+@Composable
+fun TotalAssetsCard(assets: List<Asset>) {
+    val totalAssets = assets.sumOf { it.amount }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            composable(NavigationItem.Home.route) {
-                HomeContent(user = user)
-            }
-            composable(NavigationItem.AddTransaction.route) {
-                AddTransactionScreen(viewModel = transactionViewModel)
-            }
-            composable(NavigationItem.Transactions.route) {
-                TransactionsScreen(viewModel = transactionViewModel)
-            }
-            composable(NavigationItem.Reports.route) {
-                ReportsScreen()
-            }
-            composable(NavigationItem.Profile.route) {
-                ProfileScreen(user = user)
+            Text(
+                text = "Toplam Varlık",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Text(
+                text = "₺${totalAssets}",
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            if (assets.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Varlık tiplerine göre dağılım
+                assets.groupBy { it.type }
+                    .mapValues { it.value.sumOf { asset -> asset.amount } }
+                    .toList()
+                    .sortedByDescending { it.second }
+                    .take(3)
+                    .forEach { (type, amount) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AssetTypeIcon(type)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = type.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = "₺${amount}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
             }
         }
     }
 }
 
 @Composable
-fun HomeContent(user: User) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+fun MonthlyOverview(transactions: List<Transaction>) {
+    val currentMonth = Calendar.getInstance().apply {
+        time = Date()
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }.timeInMillis
+
+    // Tüm zamanlar için toplam
+    val totalIncome = transactions
+        .filter { it.type == TransactionType.INCOME }
+        .sumOf { it.amount }
+    
+    val totalExpense = transactions
+        .filter { it.type == TransactionType.EXPENSE }
+        .sumOf { it.amount }
+    
+    val totalBalance = totalIncome - totalExpense
+
+    // Bu ay için
+    val monthlyTransactions = transactions.filter { it.date >= currentMonth }
+    
+    val monthlyIncome = monthlyTransactions
+        .filter { it.type == TransactionType.INCOME }
+        .sumOf { it.amount }
+    
+    val monthlyExpense = monthlyTransactions
+        .filter { it.type == TransactionType.EXPENSE }
+        .sumOf { it.amount }
+
+    // En çok harcama yapılan kategoriler
+    val topExpenseCategories = monthlyTransactions
+        .filter { it.type == TransactionType.EXPENSE }
+        .groupBy { it.category }
+        .mapValues { it.value.sumOf { transaction -> transaction.amount } }
+        .toList()
+        .sortedByDescending { it.second }
+        .take(3)
+
+    // En çok gelir kategorileri
+    val topIncomeCategories = monthlyTransactions
+        .filter { it.type == TransactionType.INCOME }
+        .groupBy { it.category }
+        .mapValues { it.value.sumOf { transaction -> transaction.amount } }
+        .toList()
+        .sortedByDescending { it.second }
+        .take(3)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Text(
-            text = "Hoş Geldin, ${user.name}!",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Toplam Bakiye Bölümü
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Toplam Bakiye",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Text(
+                    text = "₺${totalBalance}",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    ),
+                    color = if (totalBalance >= 0) Color.Green else Color.Red
+                )
+            }
+            
+            Divider(
+                modifier = Modifier
+                    .padding(vertical = 16.dp)
+                    .fillMaxWidth()
+            )
+            
+            // Bu Ay Özeti
+            Text(
+                text = "Bu Ay",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Gelir/Gider Özeti
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                // Gelir Özeti
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Gelir",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "₺${monthlyIncome}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.Green
+                    )
+                }
+
+                // Dikey Çizgi
+                Divider(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .width(1.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                )
+
+                // Gider Özeti
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Gider",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "₺${monthlyExpense}",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            // Kategori Özetleri
+            if (topIncomeCategories.isNotEmpty() || topExpenseCategories.isNotEmpty()) {
+                Divider(
+                    modifier = Modifier
+                        .padding(vertical = 16.dp)
+                        .fillMaxWidth()
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Gelir Kategorileri
+                    if (topIncomeCategories.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "En Çok Gelir",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            topIncomeCategories.forEach { (category, amount) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = category,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "₺${amount}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.Green
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Dikey Çizgi (eğer her iki kategori de varsa)
+                    if (topIncomeCategories.isNotEmpty() && topExpenseCategories.isNotEmpty()) {
+                        Divider(
+                            modifier = Modifier
+                                .height(100.dp)
+                                .width(1.dp)
+                                .padding(horizontal = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                    }
+
+                    // Gider Kategorileri
+                    if (topExpenseCategories.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "En Çok Gider",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            topExpenseCategories.forEach { (category, amount) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = category,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "₺${amount}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

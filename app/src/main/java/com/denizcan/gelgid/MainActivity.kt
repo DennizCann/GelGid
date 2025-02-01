@@ -12,13 +12,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
-import com.denizcan.gelgid.navigation.NavGraph
 import com.denizcan.gelgid.ui.auth.AuthViewModel
 import com.denizcan.gelgid.ui.theme.GelGidTheme
 import com.denizcan.gelgid.data.repository.FirebaseRepository
 import com.denizcan.gelgid.auth.GoogleAuthUiClient
 import kotlinx.coroutines.launch
 import com.denizcan.gelgid.ui.transaction.TransactionViewModel
+import com.denizcan.gelgid.ui.asset.AssetViewModel
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import com.denizcan.gelgid.navigation.Screen
+import com.denizcan.gelgid.ui.auth.LoginScreen
+import com.denizcan.gelgid.ui.auth.RegisterScreen
+import com.denizcan.gelgid.ui.home.HomeScreen
+import com.denizcan.gelgid.ui.auth.AuthState
 
 class MainActivity : ComponentActivity() {
     private val googleAuthUiClient by lazy {
@@ -33,6 +46,10 @@ class MainActivity : ComponentActivity() {
     
     private val transactionViewModel by lazy {
         TransactionViewModel(repository)
+    }
+
+    private val assetViewModel by lazy {
+        AssetViewModel(repository)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,10 +78,10 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    NavGraph(
-                        navController = navController,
+                    GelGidApp(
                         authViewModel = authViewModel,
                         transactionViewModel = transactionViewModel,
+                        assetViewModel = assetViewModel,
                         onGoogleSignInClick = {
                             lifecycleScope.launch {
                                 try {
@@ -77,6 +94,78 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GelGidApp(
+    authViewModel: AuthViewModel,
+    transactionViewModel: TransactionViewModel,
+    assetViewModel: AssetViewModel,
+    onGoogleSignInClick: () -> Unit
+) {
+    val navController = rememberNavController()
+    val authState by authViewModel.authState.collectAsState()
+
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthState.Success -> {
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Login.route) { inclusive = true }
+                }
+            }
+            is AuthState.SignedOut -> {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = Screen.Login.route
+    ) {
+        composable(Screen.Login.route) {
+            LoginScreen(
+                authViewModel = authViewModel,
+                onLoginClick = { email, password ->
+                    authViewModel.signIn(email, password)
+                },
+                onRegisterClick = {
+                    navController.navigate(Screen.Register.route)
+                },
+                onGoogleSignInClick = onGoogleSignInClick
+            )
+        }
+
+        composable(Screen.Register.route) {
+            RegisterScreen(
+                authViewModel = authViewModel,
+                onRegisterClick = { email, password, name ->
+                    authViewModel.signUp(email, password, name)
+                },
+                onBackToLoginClick = {
+                    navController.navigateUp()
+                }
+            )
+        }
+
+        composable(Screen.Home.route) {
+            val user = (authState as? AuthState.Success)?.user
+            if (user != null) {
+                HomeScreen(
+                    user = user,
+                    onSignOut = {
+                        authViewModel.signOut()
+                    },
+                    transactionViewModel = transactionViewModel,
+                    assetViewModel = assetViewModel
+                )
             }
         }
     }
