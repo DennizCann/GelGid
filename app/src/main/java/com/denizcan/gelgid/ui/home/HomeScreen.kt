@@ -13,12 +13,15 @@ import androidx.navigation.compose.*
 import com.denizcan.gelgid.data.model.User
 import com.denizcan.gelgid.navigation.NavigationItem
 import com.denizcan.gelgid.ui.transaction.AddTransactionScreen
+import com.denizcan.gelgid.ui.transaction.TransactionViewModel
+import com.denizcan.gelgid.ui.transaction.TransactionsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     user: User,
-    onSignOut: () -> Unit
+    onSignOut: () -> Unit,
+    transactionViewModel: TransactionViewModel
 ) {
     var selectedItem by remember { mutableStateOf(0) }
     val navController = rememberNavController()
@@ -26,9 +29,8 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "GelGid") },
+                title = { Text("GelGid") },
                 actions = {
-                    // Üst menü öğeleri
                     IconButton(onClick = onSignOut) {
                         Icon(
                             imageVector = Icons.Default.ExitToApp,
@@ -55,10 +57,7 @@ fun HomeScreen(
                         selected = selectedItem == index,
                         onClick = {
                             selectedItem = index
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.startDestinationId)
-                                launchSingleTop = true
-                            }
+                            navController.navigate(item.route)
                         }
                     )
                 }
@@ -74,10 +73,10 @@ fun HomeScreen(
                 HomeContent(user = user)
             }
             composable(NavigationItem.AddTransaction.route) {
-                AddTransactionScreen()
+                AddTransactionScreen(viewModel = transactionViewModel)
             }
             composable(NavigationItem.Transactions.route) {
-                TransactionsScreen()
+                TransactionsScreen(viewModel = transactionViewModel)
             }
             composable(NavigationItem.Reports.route) {
                 ReportsScreen()
@@ -92,21 +91,17 @@ fun HomeScreen(
 @Composable
 fun HomeContent(user: User) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = "Hoş Geldin, ${user.name}!",
             style = MaterialTheme.typography.headlineMedium
         )
-        // Ana sayfa içeriği buraya gelecek
     }
-}
-
-@Composable
-fun TransactionsScreen() {
-    // İşlem listesi ekranı
-    Text(text = "İşlemler")
 }
 
 @Composable

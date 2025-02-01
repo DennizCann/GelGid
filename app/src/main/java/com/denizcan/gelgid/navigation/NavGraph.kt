@@ -12,6 +12,9 @@ import com.denizcan.gelgid.ui.auth.AuthViewModel
 import com.denizcan.gelgid.ui.auth.LoginScreen
 import com.denizcan.gelgid.ui.auth.RegisterScreen
 import com.denizcan.gelgid.ui.home.HomeScreen
+import com.denizcan.gelgid.ui.transaction.TransactionViewModel
+import com.denizcan.gelgid.ui.transaction.TransactionsScreen
+
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -23,30 +26,24 @@ sealed class Screen(val route: String) {
 fun NavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel,
+    transactionViewModel: TransactionViewModel,
     onGoogleSignInClick: () -> Unit
 ) {
     val authState by authViewModel.authState.collectAsState()
 
-    // Debug için state değişimlerini logla
     LaunchedEffect(authState) {
-        println("AuthState changed to: $authState") // Debug log
         when (authState) {
             is AuthState.Success -> {
-                println("Navigating to Home") // Debug log
                 navController.navigate(Screen.Home.route) {
-                    // Geri tuşuna basınca login ekranına dönmeyi engellemek için
                     popUpTo(Screen.Login.route) { inclusive = true }
                 }
             }
             is AuthState.SignedOut -> {
-                println("Navigating to Login") // Debug log
                 navController.navigate(Screen.Login.route) {
                     popUpTo(0) { inclusive = true }
                 }
             }
-            else -> {
-                println("No navigation needed for state: $authState") // Debug log
-            }
+            else -> {}
         }
     }
 
@@ -86,7 +83,8 @@ fun NavGraph(
                     user = user,
                     onSignOut = {
                         authViewModel.signOut()
-                    }
+                    },
+                    transactionViewModel = transactionViewModel
                 )
             }
         }

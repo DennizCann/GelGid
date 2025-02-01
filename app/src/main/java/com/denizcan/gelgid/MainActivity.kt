@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
                     NavGraph(
                         navController = navController,
                         authViewModel = authViewModel,
+                        transactionViewModel = transactionViewModel,
                         onGoogleSignInClick = {
                             lifecycleScope.launch {
                                 try {

@@ -5,6 +5,7 @@ import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.denizcan.gelgid.data.model.User
 import com.denizcan.gelgid.data.model.Transaction
+import com.denizcan.gelgid.data.model.TransactionType
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Query
 
@@ -97,51 +98,103 @@ class FirebaseRepository {
             val currentUser = auth.currentUser
                 ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
 
-            // Transaction ID oluştur
-            val transactionRef = firestore.collection("users")
-                .document(currentUser.uid)
-                .collection("transactions")
-                .document()
+            println("Adding transaction for user: ${currentUser.uid}")
 
-            // ID'yi ekleyerek transaction'ı güncelle
+            // Koleksiyon yolunu kontrol et
+            val transactionRef = firestore
+                .collection("users")                 // users koleksiyonu
+                .document(currentUser.uid)           // kullanıcı dokümanı
+                .collection("transactions")          // transactions alt koleksiyonu
+                .document()                         // yeni transaction dokümanı
+
             val transactionWithId = transaction.copy(
                 id = transactionRef.id,
                 userId = currentUser.uid
             )
 
-            // Firestore'a kaydet
-            transactionRef.set(transactionWithId).await()
+            // Firestore'a kaydedilen veri yapısını kontrol et
+            val data = mapOf(
+                "id" to transactionWithId.id,
+                "userId" to transactionWithId.userId,
+                "amount" to transactionWithId.amount,
+                "description" to transactionWithId.description,
+                "type" to transactionWithId.type.name,  // INCOME veya EXPENSE olarak string
+                "category" to transactionWithId.category,
+                "date" to transactionWithId.date,
+                "createdAt" to transactionWithId.createdAt
+            )
+
+            println("Saving transaction with data: $data")
+            println("At path: ${transactionRef.path}")
+
+            transactionRef.set(data).await()
 
             Result.success(transactionWithId)
         } catch (e: Exception) {
+            println("Error saving transaction: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
 
-    suspend fun getTransactions(
-        startDate: Long? = null,
-        endDate: Long? = null
-    ): Result<List<Transaction>> {
+    suspend fun getTransactions(): Result<List<Transaction>> {
         return try {
             val currentUser = auth.currentUser
                 ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
 
-            var query = firestore.collection("users")
-                .document(currentUser.uid)
-                .collection("transactions")
-                .orderBy("date", Query.Direction.DESCENDING)
+            println("Getting transactions for user: ${currentUser.uid}")
 
-            // Tarih filtresi varsa ekle
-            if (startDate != null && endDate != null) {
-                query = query.whereGreaterThanOrEqualTo("date", startDate)
-                    .whereLessThanOrEqualTo("date", endDate)
+            // Koleksiyon yolunu kontrol et
+            val collectionRef = firestore
+                .collection("users")                 // users koleksiyonu
+                .document(currentUser.uid)           // kullanıcı dokümanı
+                .collection("transactions")          // transactions alt koleksiyonu
+
+            println("Querying collection at path: ${collectionRef.path}")
+
+            val snapshot = collectionRef
+                .orderBy("date", Query.Direction.DESCENDING)
+                .get()
+                .await()
+
+            println("Found ${snapshot.size()} documents")
+            snapshot.documents.forEach { doc ->
+                println("Document ${doc.id} data: ${doc.data}")
             }
 
-            val snapshot = query.get().await()
-            val transactions = snapshot.toObjects(Transaction::class.java)
+            val transactions = snapshot.documents.mapNotNull { doc ->
+                try {
+                    val data = doc.data
+                    println("Parsing document ${doc.id} with data: $data")
+                    
+                    val transaction = Transaction(
+                        id = doc.id,
+                        userId = data?.get("userId") as? String ?: "",
+                        amount = (data?.get("amount") as? Number)?.toDouble() ?: 0.0,
+                        description = data?.get("description") as? String ?: "",
+                        type = try {
+                            TransactionType.valueOf(data?.get("type") as? String ?: "EXPENSE")
+                        } catch (e: Exception) {
+                            println("Error parsing type: ${e.message}")
+                            TransactionType.EXPENSE
+                        },
+                        category = data?.get("category") as? String ?: "",
+                        date = (data?.get("date") as? Number)?.toLong() ?: System.currentTimeMillis(),
+                        createdAt = (data?.get("createdAt") as? Number)?.toLong() ?: System.currentTimeMillis()
+                    )
+                    println("Successfully parsed transaction: $transaction")
+                    transaction
+                } catch (e: Exception) {
+                    println("Error parsing document ${doc.id}: ${e.message}")
+                    e.printStackTrace()
+                    null
+                }
+            }
 
             Result.success(transactions)
         } catch (e: Exception) {
+            println("Error getting transactions: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }

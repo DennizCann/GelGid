@@ -56,6 +56,8 @@ fun AddTransactionScreen(
                 // Başarı mesajı göster
                 snackbarMessage = "İşlem başarıyla kaydedildi"
                 showSnackbar = true
+                // İşlem listesini güncelle
+                viewModel.getTransactions()
             }
             is TransactionState.Error -> {
                 // Hata mesajı göster
