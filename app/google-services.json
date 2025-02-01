@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "499007679131",
+    "project_id": "gelgid-dee36",
+    "storage_bucket": "gelgid-dee36.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499007679131:android:ee897bd5d775cfa81f343e",
+        "android_client_info": {
+          "package_name": "com.denizcan.gelgid"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "499007679131-k9k2sj4e8g8mhf6ekdgf87jeous3lv1u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.denizcan.gelgid",
+            "certificate_hash": "ef379b6f1eba41a49c896adf7ae3c0e119eae908"
+          }
+        },
+        {
+          "client_id": "499007679131-vq92uvp633332jn8kkc8j031mjh4b1mv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVLMVyBJQQuzwKIYPZSx5k3N43I3R9VfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "499007679131-vq92uvp633332jn8kkc8j031mjh4b1mv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
