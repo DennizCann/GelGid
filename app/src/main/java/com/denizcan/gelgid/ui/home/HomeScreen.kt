@@ -8,25 +8,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
 import androidx.navigation.compose.*
-import androidx.navigation.navArgument
 import com.denizcan.gelgid.data.model.Asset
 import com.denizcan.gelgid.data.model.Transaction
 import com.denizcan.gelgid.data.model.TransactionType
 import com.denizcan.gelgid.data.model.User
 import com.denizcan.gelgid.navigation.NavGraph
 import com.denizcan.gelgid.navigation.NavigationItem
-import com.denizcan.gelgid.ui.asset.AddAssetScreen
-import com.denizcan.gelgid.ui.transaction.AddTransactionScreen
 import com.denizcan.gelgid.ui.transaction.TransactionViewModel
-import com.denizcan.gelgid.ui.transaction.TransactionsScreen
-import com.denizcan.gelgid.ui.asset.AssetsScreen
 import com.denizcan.gelgid.ui.asset.AssetViewModel
 import com.denizcan.gelgid.ui.asset.AssetTypeIcon
-import com.denizcan.gelgid.ui.asset.EditAssetScreen
-import com.denizcan.gelgid.ui.asset.AssetDetailScreen
 import java.util.Calendar
 import java.util.Date
 
@@ -68,8 +61,22 @@ fun HomeScreen(
                 
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) },
+                        icon = { 
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.title,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        label = { 
+                            Text(
+                                text = item.title,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            )
+                        },
                         selected = selectedItem == index,
                         onClick = {
                             selectedItem = index
@@ -80,7 +87,15 @@ fun HomeScreen(
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        }
+                        },
+                        alwaysShowLabel = true,
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
                     )
                 }
             }
