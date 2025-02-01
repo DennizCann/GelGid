@@ -70,4 +70,23 @@ class FirebaseRepository {
     fun signOut() {
         auth.signOut()
     }
+
+    suspend fun getCurrentUser(): Result<User?> {
+        return try {
+            val firebaseUser = auth.currentUser
+            if (firebaseUser != null) {
+                val userDoc = firestore.collection("users")
+                    .document(firebaseUser.uid)
+                    .get()
+                    .await()
+                
+                val user = userDoc.toObject(User::class.java)
+                Result.success(user)
+            } else {
+                Result.success(null)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 } 

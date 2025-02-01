@@ -1,14 +1,11 @@
 package com.denizcan.gelgid
 
-import android.content.Intent
-import android.content.IntentSender
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -35,8 +32,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
+        // Uygulama başladığında mevcut oturumu kontrol et
+        lifecycleScope.launch {
+            authViewModel.checkAuthState()
+        }
+        
         var signInIntentLauncher = registerForActivityResult(
-            ActivityResultContracts.StartIntentSenderForResult()
+            ActivityResultContracts.StartActivityForResult()
         ) { result ->
             if (result.resultCode == RESULT_OK) {
                 lifecycleScope.launch {
@@ -57,11 +59,11 @@ class MainActivity : ComponentActivity() {
                         authViewModel = authViewModel,
                         onGoogleSignInClick = {
                             lifecycleScope.launch {
-                                val intentSender = authViewModel.signInWithGoogle()
-                                intentSender?.let { sender ->
-                                    signInIntentLauncher.launch(
-                                        IntentSenderRequest.Builder(sender).build()
-                                    )
+                                try {
+                                    val signInIntent = authViewModel.signInWithGoogle()
+                                    signInIntentLauncher.launch(signInIntent)
+                                } catch (e: Exception) {
+                                    // Hata durumunu handle et
                                 }
                             }
                         }

@@ -66,7 +66,7 @@ class AuthViewModel(
         }
     }
 
-    suspend fun signInWithGoogle(): IntentSender? {
+    suspend fun signInWithGoogle(): Intent {
         return googleAuthUiClient.signIn()
     }
 
@@ -80,6 +80,24 @@ class AuthViewModel(
                 }
                 .onFailure { exception ->
                     _authState.value = AuthState.Error(exception.message ?: "Google ile giriş başarısız")
+                }
+        }
+    }
+
+    fun checkAuthState() {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            
+            repository.getCurrentUser()
+                .onSuccess { user ->
+                    if (user != null) {
+                        _authState.value = AuthState.Success(user)
+                    } else {
+                        _authState.value = AuthState.Initial
+                    }
+                }
+                .onFailure { exception ->
+                    _authState.value = AuthState.Error(exception.message ?: "Oturum kontrolü başarısız")
                 }
         }
     }
