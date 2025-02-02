@@ -2,7 +2,6 @@ package com.denizcan.gelgid.auth
 
 import android.content.Context
 import android.content.Intent
-import android.content.IntentSender
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions

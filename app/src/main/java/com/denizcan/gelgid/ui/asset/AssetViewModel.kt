@@ -9,7 +9,6 @@ import com.denizcan.gelgid.data.repository.FirebaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.map
 
 sealed class AssetState {
     object Initial : AssetState()

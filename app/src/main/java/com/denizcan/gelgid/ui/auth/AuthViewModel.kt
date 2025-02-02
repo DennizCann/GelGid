@@ -1,7 +1,6 @@
 package com.denizcan.gelgid.ui.auth
 
 import android.content.Intent
-import android.content.IntentSender
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.denizcan.gelgid.data.model.User

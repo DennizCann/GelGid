@@ -399,9 +399,9 @@ class FirebaseRepository {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            val errorMessage = when {
-                e is FirebaseAuthInvalidCredentialsException -> "Mevcut şifre yanlış"
-                e is FirebaseAuthWeakPasswordException -> "Yeni şifre çok zayıf"
+            val errorMessage = when (e) {
+                is FirebaseAuthInvalidCredentialsException -> "Mevcut şifre yanlış"
+                is FirebaseAuthWeakPasswordException -> "Yeni şifre çok zayıf"
                 else -> e.message ?: "Şifre değiştirilemedi"
             }
             Result.failure(Exception(errorMessage))
@@ -428,8 +428,8 @@ class FirebaseRepository {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            val errorMessage = when {
-                e is FirebaseAuthInvalidCredentialsException -> "Şifre yanlış"
+            val errorMessage = when (e) {
+                is FirebaseAuthInvalidCredentialsException -> "Şifre yanlış"
                 else -> e.message ?: "Hesap silinemedi"
             }
             Result.failure(Exception(errorMessage))
