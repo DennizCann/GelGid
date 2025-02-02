@@ -63,23 +63,15 @@ class TransactionViewModel(
         }
     }
 
-    fun getTransactions() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                println("ViewModel: Getting transactions")
-                repository.getTransactions()
-                    .onSuccess { transactions ->
-                        println("ViewModel: Successfully loaded ${transactions.size} transactions")
-                        _transactions.value = transactions
-                    }
-                    .onFailure { exception ->
-                        println("ViewModel: Error loading transactions - ${exception.message}")
-                        exception.printStackTrace()
-                    }
-            } finally {
-                _isLoading.value = false
-            }
+    suspend fun getTransactions(): Result<Unit> {
+        return try {
+            repository.getTransactions()
+                .onSuccess { transactionsList ->
+                    _transactions.value = transactionsList
+                }
+                .map { } // Result<List<Transaction>>'ı Result<Unit>'e dönüştürüyoruz
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

@@ -10,6 +10,9 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Query
 import com.denizcan.gelgid.data.model.Asset
 import com.denizcan.gelgid.data.model.AssetHistory
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -29,7 +32,8 @@ class FirebaseRepository {
             val user = User(
                 id = authResult.user?.uid ?: "",
                 email = email,
-                name = name
+                name = name,
+                createdAt = System.currentTimeMillis()
             )
             
             println("Saving user to Firestore")
@@ -40,7 +44,6 @@ class FirebaseRepository {
                     .await()
             } catch (e: Exception) {
                 println("Firestore error: ${e.message}")
-                // Firestore hatası durumunda Authentication'dan da kullanıcıyı silelim
                 authResult.user?.delete()?.await()
                 throw Exception("Kullanıcı kaydı tamamlanamadı: ${e.message}")
             }
@@ -356,6 +359,80 @@ class FirebaseRepository {
             Result.success(history)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun updateUserProfile(name: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            // Auth profilini güncelle
+            val profileUpdates = userProfileChangeRequest {
+                displayName = name
+            }
+            currentUser.updateProfile(profileUpdates).await()
+
+            // Firestore'daki kullanıcı dokümanını güncelle
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .update("name", name)
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            // Önce mevcut şifreyle yeniden kimlik doğrulama yap
+            val credential = EmailAuthProvider.getCredential(currentUser.email!!, currentPassword)
+            currentUser.reauthenticate(credential).await()
+
+            // Şifreyi güncelle
+            currentUser.updatePassword(newPassword).await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            val errorMessage = when {
+                e is FirebaseAuthInvalidCredentialsException -> "Mevcut şifre yanlış"
+                e is FirebaseAuthWeakPasswordException -> "Yeni şifre çok zayıf"
+                else -> e.message ?: "Şifre değiştirilemedi"
+            }
+            Result.failure(Exception(errorMessage))
+        }
+    }
+
+    suspend fun deleteAccount(password: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            // Önce kullanıcıyı yeniden doğrula
+            val credential = EmailAuthProvider.getCredential(currentUser.email!!, password)
+            currentUser.reauthenticate(credential).await()
+
+            // Firestore'dan kullanıcı verilerini sil
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .delete()
+                .await()
+
+            // Firebase Auth'dan hesabı sil
+            currentUser.delete().await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            val errorMessage = when {
+                e is FirebaseAuthInvalidCredentialsException -> "Şifre yanlış"
+                else -> e.message ?: "Hesap silinemedi"
+            }
+            Result.failure(Exception(errorMessage))
         }
     }
 } 

@@ -20,8 +20,12 @@ import com.denizcan.gelgid.navigation.NavigationItem
 import com.denizcan.gelgid.ui.transaction.TransactionViewModel
 import com.denizcan.gelgid.ui.asset.AssetViewModel
 import com.denizcan.gelgid.ui.asset.AssetTypeIcon
+import com.denizcan.gelgid.ui.profile.ProfileViewModel
 import java.util.Calendar
 import java.util.Date
+import com.denizcan.gelgid.ui.auth.AuthViewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +33,9 @@ fun HomeScreen(
     user: User,
     onSignOut: () -> Unit,
     transactionViewModel: TransactionViewModel,
-    assetViewModel: AssetViewModel
+    assetViewModel: AssetViewModel,
+    profileViewModel: ProfileViewModel,
+    authViewModel: AuthViewModel
 ) {
     var selectedItem by remember { mutableStateOf(0) }
     val navController = rememberNavController()
@@ -106,7 +112,9 @@ fun HomeScreen(
             paddingValues = paddingValues,
             user = user,
             transactionViewModel = transactionViewModel,
-            assetViewModel = assetViewModel
+            assetViewModel = assetViewModel,
+            profileViewModel = profileViewModel,
+            authViewModel = authViewModel
         )
     }
 }
@@ -119,24 +127,81 @@ fun HomeContent(
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val assets by assetViewModel.assets.collectAsState()
+    var isLoading by remember { mutableStateOf(true) }
+    var hasError by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     
-    LaunchedEffect(Unit) {
-        viewModel.getTransactions()
-        assetViewModel.getAssets()
+    LaunchedEffect(key1 = true) {
+        try {
+            coroutineScope {
+                launch { 
+                    viewModel.getTransactions()
+                        .onFailure {
+                            hasError = true
+                        }
+                }
+                launch { 
+                    assetViewModel.getAssets()
+                        .onFailure {
+                            hasError = true
+                        }
+                }
+            }
+        } catch (e: Exception) {
+            hasError = true
+        } finally {
+            isLoading = false
+        }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Toplam Varlık Kartı
-        TotalAssetsCard(assets = assets)
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Gelir/Gider Özeti
-        MonthlyOverview(transactions = transactions)
+        when {
+            isLoading -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            hasError -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Veriler yüklenirken bir hata oluştu",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            isLoading = true
+                            hasError = false
+                            scope.launch { 
+                                viewModel.getTransactions()
+                                assetViewModel.getAssets()
+                            }
+                        }
+                    ) {
+                        Text("Tekrar Dene")
+                    }
+                }
+            }
+            else -> {
+                Column {
+                    // Toplam Varlık Kartı
+                    TotalAssetsCard(assets = assets)
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Gelir/Gider Özeti
+                    MonthlyOverview(transactions = transactions)
+                }
+            }
+        }
     }
 }
 
@@ -449,14 +514,4 @@ fun MonthlyOverview(transactions: List<Transaction>) {
 fun ReportsScreen() {
     // Raporlar ekranı
     Text(text = "Raporlar")
-}
-
-@Composable
-fun ProfileScreen(user: User) {
-    // Profil ekranı
-    Column {
-        Text(text = "Profil")
-        Text(text = "Ad: ${user.name}")
-        Text(text = "E-posta: ${user.email}")
-    }
 } 

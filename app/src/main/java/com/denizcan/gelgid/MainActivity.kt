@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.denizcan.gelgid.navigation.Screen
@@ -32,6 +31,7 @@ import com.denizcan.gelgid.ui.auth.LoginScreen
 import com.denizcan.gelgid.ui.auth.RegisterScreen
 import com.denizcan.gelgid.ui.home.HomeScreen
 import com.denizcan.gelgid.ui.auth.AuthState
+import com.denizcan.gelgid.ui.profile.ProfileViewModel
 
 class MainActivity : ComponentActivity() {
     private val googleAuthUiClient by lazy {
@@ -50,6 +50,10 @@ class MainActivity : ComponentActivity() {
 
     private val assetViewModel by lazy {
         AssetViewModel(repository)
+    }
+
+    private val profileViewModel by lazy {
+        ProfileViewModel(repository, authViewModel)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,6 +86,7 @@ class MainActivity : ComponentActivity() {
                         authViewModel = authViewModel,
                         transactionViewModel = transactionViewModel,
                         assetViewModel = assetViewModel,
+                        profileViewModel = profileViewModel,
                         onGoogleSignInClick = {
                             lifecycleScope.launch {
                                 try {
@@ -105,6 +110,7 @@ fun GelGidApp(
     authViewModel: AuthViewModel,
     transactionViewModel: TransactionViewModel,
     assetViewModel: AssetViewModel,
+    profileViewModel: ProfileViewModel,
     onGoogleSignInClick: () -> Unit
 ) {
     val navController = rememberNavController()
@@ -164,7 +170,9 @@ fun GelGidApp(
                         authViewModel.signOut()
                     },
                     transactionViewModel = transactionViewModel,
-                    assetViewModel = assetViewModel
+                    assetViewModel = assetViewModel,
+                    profileViewModel = profileViewModel,
+                    authViewModel = authViewModel
                 )
             }
         }

@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.denizcan.gelgid.data.model.Asset
 import com.denizcan.gelgid.data.model.AssetType
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +35,9 @@ fun AssetsScreen(
 ) {
     val assets by viewModel.assets.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    // Her seferinde yeniden yükle
-    DisposableEffect(Unit) {
-        viewModel.getAssets()
-        onDispose { }
-    }
-
-    // Ekran her aktif olduğunda yeniden yükle
-    LaunchedEffect(Unit) {
+    LaunchedEffect(key1 = true) {
         viewModel.getAssets()
     }
 
@@ -54,8 +50,9 @@ fun AssetsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // FAB'a tıklandığında önce state'i yenile
-                    viewModel.getAssets()
+                    scope.launch {
+                        viewModel.getAssets()
+                    }
                     onAddClick()
                 }
             ) {
@@ -94,13 +91,15 @@ fun AssetsScreen(
                             AssetItem(
                                 asset = asset,
                                 onDeleteClick = { 
-                                    viewModel.deleteAsset(asset.id)
-                                    // Silme sonrası state'i yenile
-                                    viewModel.getAssets()
+                                    scope.launch {
+                                        viewModel.deleteAsset(asset.id)
+                                        viewModel.getAssets()
+                                    }
                                 },
                                 onEditClick = { 
-                                    // Düzenleme öncesi state'i yenile
-                                    viewModel.getAssets()
+                                    scope.launch {
+                                        viewModel.getAssets()
+                                    }
                                     onEditClick(asset.id)
                                 },
                                 onClick = { onItemClick(asset.id) }

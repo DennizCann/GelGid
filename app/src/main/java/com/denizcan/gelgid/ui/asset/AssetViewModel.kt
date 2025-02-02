@@ -9,6 +9,7 @@ import com.denizcan.gelgid.data.repository.FirebaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 
 sealed class AssetState {
     object Initial : AssetState()
@@ -65,21 +66,15 @@ class AssetViewModel(
         }
     }
 
-    fun getAssets() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                repository.getAssets()
-                    .onSuccess { assets ->
-                        _assets.value = assets
-                        _assetState.value = AssetState.Initial
-                    }
-                    .onFailure { exception ->
-                        // Hata durumunu handle et
-                    }
-            } finally {
-                _isLoading.value = false
-            }
+    suspend fun getAssets(): Result<Unit> {
+        return try {
+            repository.getAssets()
+                .onSuccess { assetsList ->
+                    _assets.value = assetsList
+                }
+                .map { } // Result<List<Asset>>'i Result<Unit>'e dönüştürüyoruz
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -138,6 +133,9 @@ class AssetViewModel(
     }
 
     fun refreshAssets() {
-        _refreshTrigger.value = _refreshTrigger.value + 1
+        viewModelScope.launch {
+            getAssets()
+            _refreshTrigger.value = _refreshTrigger.value + 1
+        }
     }
 } 
