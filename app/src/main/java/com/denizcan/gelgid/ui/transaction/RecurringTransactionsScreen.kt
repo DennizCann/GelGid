@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.denizcan.gelgid.data.model.RecurringTransaction
-import androidx.navigation.NavController
 import com.denizcan.gelgid.data.model.TransactionType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,7 +18,7 @@ import com.denizcan.gelgid.data.model.TransactionType
 fun RecurringTransactionsScreen(
     viewModel: TransactionViewModel,
     onNavigateBack: () -> Unit,
-    navController: NavController
+    onEditClick: (String) -> Unit
 ) {
     val recurringTransactions by viewModel.recurringTransactions.collectAsState()
 
@@ -45,9 +44,7 @@ fun RecurringTransactionsScreen(
             items(recurringTransactions) { transaction ->
                 RecurringTransactionItem(
                     transaction = transaction,
-                    onEditClick = {
-                        navController.navigate("edit_recurring_transaction/${transaction.id}")
-                    },
+                    onEditClick = { onEditClick(transaction.id) },
                     onDeleteClick = {
                         viewModel.deleteRecurringTransaction(transaction.id)
                     }

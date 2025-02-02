@@ -206,7 +206,9 @@ fun NavGraph(
             RecurringTransactionsScreen(
                 viewModel = recurringTransactionViewModel,
                 onNavigateBack = { navController.popBackStack() },
-                navController = navController
+                onEditClick = { transactionId ->
+                    navController.navigate("edit_recurring_transaction/$transactionId")
+                }
             )
         }
 

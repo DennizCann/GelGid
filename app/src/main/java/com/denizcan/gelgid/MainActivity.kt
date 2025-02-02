@@ -81,7 +81,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
                     GelGidApp(
                         authViewModel = authViewModel,
                         transactionViewModel = transactionViewModel,
@@ -93,7 +92,8 @@ class MainActivity : ComponentActivity() {
                                     val signInIntent = authViewModel.signInWithGoogle()
                                     signInIntentLauncher.launch(signInIntent)
                                 } catch (e: Exception) {
-                                    // Hata durumunu handle et
+                                    println("Google ile giriş hatası: ${e.message}")
+                                    // TODO: Kullanıcıya hata mesajı göster
                                 }
                             }
                         }

@@ -34,6 +34,9 @@ class TransactionViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
     fun addTransaction(
         amount: Double,
         description: String,
@@ -111,6 +114,7 @@ class TransactionViewModel(
                     getTransactions()  // Normal işlemleri de güncelle
                 }.onFailure { e ->
                     println("Error adding recurring transaction: ${e.message}")
+                    _error.value = e.message ?: "Sabit işlem eklenirken bir hata oluştu"
                 }
             } finally {
                 _isLoading.value = false
