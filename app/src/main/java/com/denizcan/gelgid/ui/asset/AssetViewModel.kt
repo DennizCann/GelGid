@@ -32,9 +32,6 @@ class AssetViewModel(
     private val _assetHistory = MutableStateFlow<List<AssetHistory>>(emptyList())
     val assetHistory: StateFlow<List<AssetHistory>> = _assetHistory
 
-    private val _refreshTrigger = MutableStateFlow(0)
-    val refreshTrigger: StateFlow<Int> = _refreshTrigger
-
     fun addAsset(
         name: String,
         type: AssetType,
@@ -134,7 +131,6 @@ class AssetViewModel(
     fun refreshAssets() {
         viewModelScope.launch {
             getAssets()
-            _refreshTrigger.value = _refreshTrigger.value + 1
         }
     }
 } 

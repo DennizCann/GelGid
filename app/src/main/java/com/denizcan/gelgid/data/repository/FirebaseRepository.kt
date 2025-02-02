@@ -12,7 +12,6 @@ import com.denizcan.gelgid.data.model.Asset
 import com.denizcan.gelgid.data.model.AssetHistory
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.denizcan.gelgid.data.model.RecurringTransaction
 import java.util.*
 
@@ -423,9 +422,9 @@ class FirebaseRepository {
 
             Result.success(Unit)
         } catch (e: Exception) {
-            val errorMessage = when (e) {
-                is FirebaseAuthInvalidCredentialsException -> "Mevcut şifre yanlış"
-                is FirebaseAuthWeakPasswordException -> "Yeni şifre çok zayıf"
+            val errorMessage = when {
+                e.message?.contains("INVALID_CREDENTIAL") == true -> "Mevcut şifre yanlış"
+                e.message?.contains("WEAK_PASSWORD") == true -> "Yeni şifre çok zayıf"
                 else -> e.message ?: "Şifre değiştirilemedi"
             }
             Result.failure(Exception(errorMessage))

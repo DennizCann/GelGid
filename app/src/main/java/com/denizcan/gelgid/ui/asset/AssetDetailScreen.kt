@@ -1,13 +1,12 @@
 package com.denizcan.gelgid.ui.asset
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,9 +23,7 @@ import java.util.*
 fun AssetDetailScreen(
     asset: Asset,
     viewModel: AssetViewModel,
-    onNavigateBack: () -> Unit,
-    onEditClick: (String) -> Unit,
-    onDeleteClick: (String) -> Unit
+    onNavigateBack: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
@@ -47,30 +44,6 @@ fun AssetDetailScreen(
                             contentDescription = "Geri"
                         )
                     }
-                },
-                actions = {
-                    // Değer Güncelle butonu
-                    IconButton(onClick = { showUpdateDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Değer Güncelle"
-                        )
-                    }
-                    // Düzenle butonu
-                    IconButton(onClick = { onEditClick(asset.id) }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Düzenle"
-                        )
-                    }
-                    // Sil butonu
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Sil",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
                 }
             )
         }
@@ -83,7 +56,9 @@ fun AssetDetailScreen(
         ) {
             // Varlık Detay Kartı
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showUpdateDialog = true },
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
@@ -193,7 +168,7 @@ fun AssetDetailScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            onDeleteClick(asset.id)
+                            viewModel.deleteAsset(asset.id)
                             showDeleteDialog = false
                         },
                         colors = ButtonDefaults.textButtonColors(

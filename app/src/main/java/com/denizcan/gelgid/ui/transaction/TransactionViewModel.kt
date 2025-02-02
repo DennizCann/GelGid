@@ -118,14 +118,6 @@ class TransactionViewModel(
         }
     }
 
-    // Belirli bir tarihten itibaren sabit işlemleri işle
-    private fun processRecurringTransactionsFromDate(startDate: Long) {
-        viewModelScope.launch {
-            repository.processRecurringTransactionsFromDate(startDate)
-            getTransactions()
-        }
-    }
-
     fun getRecurringTransactions() {
         viewModelScope.launch {
             repository.getRecurringTransactions()

@@ -11,8 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.denizcan.gelgid.data.model.RecurringTransaction
-import java.text.SimpleDateFormat
-import java.util.*
 import androidx.navigation.NavController
 import com.denizcan.gelgid.data.model.TransactionType
 

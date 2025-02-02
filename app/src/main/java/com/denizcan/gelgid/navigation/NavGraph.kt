@@ -98,8 +98,7 @@ fun NavGraph(
                 onSignOut = {
                     authViewModel.signOut()
                 },
-                viewModel = profileViewModel,
-                navController = navController
+                viewModel = profileViewModel
             )
         }
 
@@ -107,9 +106,6 @@ fun NavGraph(
         composable(NavigationItem.Assets.route) {
             AssetsScreen(
                 viewModel = assetViewModel,
-                onAddClick = {
-                    navController.navigate(NavigationItem.AddAsset.route)
-                },
                 onEditClick = { assetId ->
                     navController.navigate(NavigationItem.EditAsset.createRoute(assetId))
                 },
@@ -158,13 +154,6 @@ fun NavGraph(
                     asset = asset,
                     viewModel = assetViewModel,
                     onNavigateBack = {
-                        navController.popBackStack()
-                    },
-                    onEditClick = { id ->
-                        navController.navigate(NavigationItem.EditAsset.createRoute(id))
-                    },
-                    onDeleteClick = { id ->
-                        assetViewModel.deleteAsset(id)
                         navController.popBackStack()
                     }
                 )

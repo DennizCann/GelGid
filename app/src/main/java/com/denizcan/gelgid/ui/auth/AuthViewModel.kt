@@ -69,7 +69,7 @@ class AuthViewModel(
         return googleAuthUiClient.signIn()
     }
 
-    suspend fun signInWithGoogleIntent(intent: Intent) {
+    fun signInWithGoogleIntent(intent: Intent) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             

@@ -31,7 +31,7 @@ fun AddRecurringTransactionScreen(
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var dayOfMonth by remember { mutableStateOf("1") }
-    var startDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var startDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }

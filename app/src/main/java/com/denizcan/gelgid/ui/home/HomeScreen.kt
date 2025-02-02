@@ -43,7 +43,7 @@ fun HomeScreen(
     authViewModel: AuthViewModel,
     recurringTransactionViewModel: TransactionViewModel
 ) {
-    var selectedItem by remember { mutableStateOf(0) }
+    var selectedItem by remember { mutableIntStateOf(0) }
     val navController = rememberNavController()
     var showMenu by remember { mutableStateOf(false) }
     
@@ -203,7 +203,6 @@ fun HomeContent(
     assetViewModel: AssetViewModel,
     navController: NavController
 ) {
-    val transactions by viewModel.transactions.collectAsState()
     val assets by assetViewModel.assets.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
     var hasError by remember { mutableStateOf(false) }
@@ -229,6 +228,7 @@ fun HomeContent(
                 }
             }
         } catch (e: Exception) {
+            println("Veri yükleme hatası: ${e.message}")
             hasError = true
         } finally {
             isLoading = false
@@ -273,6 +273,13 @@ fun HomeContent(
             }
             else -> {
                 Column {
+                    Text(
+                        text = "Hoş geldin, ${user.name}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
                     // Toplam Varlık Kartı
                     TotalAssetsCard(assets = assets)
                     

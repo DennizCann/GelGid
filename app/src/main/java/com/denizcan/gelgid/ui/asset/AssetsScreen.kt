@@ -22,14 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.denizcan.gelgid.data.model.Asset
 import com.denizcan.gelgid.data.model.AssetType
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AssetsScreen(
     viewModel: AssetViewModel,
-    onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
     onItemClick: (String) -> Unit
 ) {
