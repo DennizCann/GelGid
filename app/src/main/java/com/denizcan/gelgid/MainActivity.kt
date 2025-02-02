@@ -172,7 +172,8 @@ fun GelGidApp(
                     transactionViewModel = transactionViewModel,
                     assetViewModel = assetViewModel,
                     profileViewModel = profileViewModel,
-                    authViewModel = authViewModel
+                    authViewModel = authViewModel,
+                    recurringTransactionViewModel = transactionViewModel
                 )
             }
         }

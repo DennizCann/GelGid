@@ -20,6 +20,9 @@ import com.denizcan.gelgid.data.model.User
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.navigation.NavController
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ChevronRight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,7 +32,8 @@ fun ProfileScreen(
     onChangePassword: () -> Unit,
     onDeleteAccount: (String) -> Unit,
     onSignOut: () -> Unit,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel,
+    navController: NavController
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }

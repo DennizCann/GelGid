@@ -13,11 +13,37 @@ import com.denizcan.gelgid.data.model.AssetHistory
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.denizcan.gelgid.data.model.RecurringTransaction
+import java.util.*
 
 class FirebaseRepository {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
+    // Kullanıcı koleksiyonlarını oluşturmak için yardımcı fonksiyon
+    private suspend fun createUserCollections(userId: String) {
+        try {
+            // transactions koleksiyonunu oluştur
+            firestore.collection("users")
+                .document(userId)
+                .collection("transactions")
+                .document()
+                .delete()  // Dummy döküman oluştur ve sil (koleksiyonu oluşturmak için)
+                .await()
+
+            // recurring_transactions koleksiyonunu oluştur
+            firestore.collection("users")
+                .document(userId)
+                .collection("recurring_transactions")
+                .document()
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            println("Koleksiyonlar oluşturulurken hata: ${e.message}")
+        }
+    }
+
+    // signUp fonksiyonunda kullanıcı koleksiyonlarını oluştur
     suspend fun signUp(email: String, password: String, name: String): Result<User> {
         return try {
             println("Creating auth user")
@@ -47,6 +73,9 @@ class FirebaseRepository {
                 authResult.user?.delete()?.await()
                 throw Exception("Kullanıcı kaydı tamamlanamadı: ${e.message}")
             }
+
+            // Kullanıcı koleksiyonlarını oluştur
+            createUserCollections(user.id)
 
             println("Signup completed successfully")
             Result.success(user)
@@ -98,46 +127,41 @@ class FirebaseRepository {
         }
     }
 
-    suspend fun addTransaction(transaction: Transaction): Result<Transaction> {
+    suspend fun addTransaction(
+        title: String = "",
+        amount: Double,
+        type: TransactionType,
+        category: String,
+        description: String = "",
+        date: Long = System.currentTimeMillis(),
+        isRecurring: Boolean = false,
+        recurringId: String = ""
+    ): Result<Transaction> {
         return try {
             val currentUser = auth.currentUser
                 ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
 
-            println("Adding transaction for user: ${currentUser.uid}")
+            val transactionRef = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("transactions")
+                .document()
 
-            // Koleksiyon yolunu kontrol et
-            val transactionRef = firestore
-                .collection("users")                 // users koleksiyonu
-                .document(currentUser.uid)           // kullanıcı dokümanı
-                .collection("transactions")          // transactions alt koleksiyonu
-                .document()                         // yeni transaction dokümanı
-
-            val transactionWithId = transaction.copy(
+            val transaction = Transaction(
                 id = transactionRef.id,
-                userId = currentUser.uid
+                userId = currentUser.uid,
+                title = title,
+                amount = amount,
+                type = type,
+                category = category,
+                description = description,
+                date = date,
+                isRecurring = isRecurring,
+                recurringId = recurringId
             )
 
-            // Firestore'a kaydedilen veri yapısını kontrol et
-            val data = mapOf(
-                "id" to transactionWithId.id,
-                "userId" to transactionWithId.userId,
-                "amount" to transactionWithId.amount,
-                "description" to transactionWithId.description,
-                "type" to transactionWithId.type.name,  // INCOME veya EXPENSE olarak string
-                "category" to transactionWithId.category,
-                "date" to transactionWithId.date,
-                "createdAt" to transactionWithId.createdAt
-            )
-
-            println("Saving transaction with data: $data")
-            println("At path: ${transactionRef.path}")
-
-            transactionRef.set(data).await()
-
-            Result.success(transactionWithId)
+            transactionRef.set(transaction).await()
+            Result.success(transaction)
         } catch (e: Exception) {
-            println("Error saving transaction: ${e.message}")
-            e.printStackTrace()
             Result.failure(e)
         }
     }
@@ -434,5 +458,285 @@ class FirebaseRepository {
             }
             Result.failure(Exception(errorMessage))
         }
+    }
+
+    suspend fun addRecurringTransaction(
+        title: String,
+        amount: Double,
+        type: TransactionType,
+        category: String,
+        dayOfMonth: Int,
+        startDate: Long = System.currentTimeMillis()
+    ): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            println("Adding recurring transaction: title=$title, amount=$amount, type=$type, dayOfMonth=$dayOfMonth, startDate=$startDate")
+
+            val recurringRef = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("recurring_transactions")
+                .document()
+
+            val recurring = RecurringTransaction(
+                id = recurringRef.id,
+                userId = currentUser.uid,
+                title = title,
+                amount = amount,
+                type = type,
+                category = category,
+                dayOfMonth = dayOfMonth,
+                startDate = startDate
+            )
+
+            // Önce sabit işlemi kaydet
+            recurringRef.set(recurring).await()
+            println("Recurring transaction saved with id: ${recurring.id}")
+
+            // Hemen işlemleri oluştur
+            val endCalendar = Calendar.getInstance()
+            val processCalendar = Calendar.getInstance().apply {
+                timeInMillis = startDate
+                set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            println("Processing transactions from ${processCalendar.time} to ${endCalendar.time}")
+
+            // Eğer seçilen gün, ayın son gününden büyükse, ayın son gününü al
+            val maxDay = processCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+            if (dayOfMonth > maxDay) {
+                processCalendar.set(Calendar.DAY_OF_MONTH, maxDay)
+            }
+
+            // Her ay için işlem oluştur
+            while (processCalendar.timeInMillis <= endCalendar.timeInMillis) {
+                println("Creating transaction for date: ${processCalendar.time}")
+                
+                // Bu tarihte işlem oluştur
+                addTransaction(
+                    title = title,
+                    amount = amount,
+                    type = type,
+                    category = category,
+                    description = "Otomatik ${if(type == TransactionType.INCOME) "gelir" else "gider"}",
+                    date = processCalendar.timeInMillis,
+                    isRecurring = true,
+                    recurringId = recurring.id
+                ).onSuccess {
+                    println("Transaction created successfully for date: ${processCalendar.time}")
+                }.onFailure { e ->
+                    println("Failed to create transaction: ${e.message}")
+                }
+
+                // Bir sonraki aya geç
+                processCalendar.add(Calendar.MONTH, 1)
+                
+                // Ayın son gününü kontrol et
+                val nextMaxDay = processCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                if (dayOfMonth > nextMaxDay) {
+                    processCalendar.set(Calendar.DAY_OF_MONTH, nextMaxDay)
+                } else {
+                    processCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                }
+            }
+
+            // Son işlem tarihini güncelle
+            recurringRef.update("lastProcessedDate", endCalendar.timeInMillis).await()
+            println("Recurring transaction process completed")
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("Error in addRecurringTransaction: ${e.message}")
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRecurringTransactions(): Result<List<RecurringTransaction>> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val snapshot = firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("recurring_transactions")
+                .get()
+                .await()
+
+            Result.success(snapshot.toObjects(RecurringTransaction::class.java))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteRecurringTransaction(id: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("recurring_transactions")
+                .document(id)
+                .delete()
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun processRecurringTransactionsFromDate(startDate: Long): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            val endCalendar = Calendar.getInstance()
+            val startCalendar = Calendar.getInstance().apply {
+                timeInMillis = startDate
+                // Saat, dakika, saniye sıfırla
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            println("Processing recurring transactions from ${startCalendar.time} to ${endCalendar.time}")
+
+            val recurringTransactions = getRecurringTransactions()
+                .getOrDefault(emptyList())
+
+            recurringTransactions.forEach { recurring ->
+                println("Processing recurring transaction: ${recurring.title}")
+
+                // Her bir sabit işlem için
+                val processCalendar = Calendar.getInstance().apply {
+                    timeInMillis = maxOf(startDate, recurring.startDate)
+                    // Ayın gününü ayarla
+                    set(Calendar.DAY_OF_MONTH, recurring.dayOfMonth)
+                    // Saat, dakika, saniye sıfırla
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                // Eğer seçilen gün, ayın son gününden büyükse, ayın son gününü al
+                val maxDay = processCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                if (recurring.dayOfMonth > maxDay) {
+                    processCalendar.set(Calendar.DAY_OF_MONTH, maxDay)
+                }
+
+                // Başlangıç tarihi ayın seçilen gününden sonraysa, bir sonraki aya geç
+                if (processCalendar.timeInMillis < startDate) {
+                    processCalendar.add(Calendar.MONTH, 1)
+                }
+
+                // Her ay için işlem oluştur
+                while (processCalendar.timeInMillis <= endCalendar.timeInMillis) {
+                    println("Checking date: ${processCalendar.time}")
+
+                    // Önce bu tarihte işlem var mı kontrol et
+                    val existingTransactions = firestore.collection("users")
+                        .document(currentUser.uid)
+                        .collection("transactions")
+                        .whereEqualTo("recurringId", recurring.id)
+                        .whereGreaterThanOrEqualTo("date", processCalendar.timeInMillis)
+                        .whereLessThan("date", processCalendar.timeInMillis + 24 * 60 * 60 * 1000)
+                        .get()
+                        .await()
+
+                    // Bu tarihte işlem yoksa oluştur
+                    if (existingTransactions.isEmpty) {
+                        println("Creating transaction for date: ${processCalendar.time}")
+                        addTransaction(
+                            title = recurring.title,
+                            amount = recurring.amount,
+                            type = recurring.type,
+                            category = recurring.category,
+                            description = "Otomatik ${if(recurring.type == TransactionType.INCOME) "gelir" else "gider"}",
+                            date = processCalendar.timeInMillis,
+                            isRecurring = true,
+                            recurringId = recurring.id
+                        ).onSuccess {
+                            println("Transaction created successfully")
+                        }.onFailure { e ->
+                            println("Failed to create transaction: ${e.message}")
+                        }
+                    } else {
+                        println("Transaction already exists for this date")
+                    }
+
+                    // Bir sonraki aya geç
+                    processCalendar.add(Calendar.MONTH, 1)
+                    
+                    // Ayın son gününü kontrol et
+                    val nextMaxDay = processCalendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+                    if (recurring.dayOfMonth > nextMaxDay) {
+                        processCalendar.set(Calendar.DAY_OF_MONTH, nextMaxDay)
+                    } else {
+                        processCalendar.set(Calendar.DAY_OF_MONTH, recurring.dayOfMonth)
+                    }
+                }
+
+                // Son işlem tarihini güncelle
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .collection("recurring_transactions")
+                    .document(recurring.id)
+                    .update("lastProcessedDate", endCalendar.timeInMillis)
+                    .await()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("Error processing recurring transactions: ${e.message}")
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateRecurringTransaction(
+        id: String,
+        title: String,
+        amount: Double,
+        category: String,
+        dayOfMonth: Int
+    ): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser
+                ?: return Result.failure(Exception("Kullanıcı oturumu bulunamadı"))
+
+            firestore.collection("users")
+                .document(currentUser.uid)
+                .collection("recurring_transactions")
+                .document(id)
+                .update(
+                    mapOf(
+                        "title" to title,
+                        "amount" to amount,
+                        "category" to category,
+                        "dayOfMonth" to dayOfMonth,
+                        "updatedAt" to System.currentTimeMillis()
+                    )
+                )
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Koleksiyonları kontrol etmek için
+    suspend fun checkAndCreateCollections() {
+        val currentUser = auth.currentUser ?: return
+        createUserCollections(currentUser.uid)
     }
 } 

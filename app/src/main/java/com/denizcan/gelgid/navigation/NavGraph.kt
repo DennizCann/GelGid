@@ -28,6 +28,10 @@ import com.denizcan.gelgid.ui.profile.ProfileViewModel
 import com.denizcan.gelgid.ui.profile.ProfileState
 import com.denizcan.gelgid.ui.profile.ChangePasswordScreen
 import com.denizcan.gelgid.ui.auth.AuthViewModel
+import com.denizcan.gelgid.ui.transaction.RecurringTransactionsScreen
+import com.denizcan.gelgid.data.model.TransactionType
+import com.denizcan.gelgid.ui.transaction.AddRecurringTransactionScreen
+import com.denizcan.gelgid.ui.transaction.EditRecurringTransactionScreen
 
 @Composable
 fun NavGraph(
@@ -37,7 +41,8 @@ fun NavGraph(
     transactionViewModel: TransactionViewModel,
     assetViewModel: AssetViewModel,
     profileViewModel: ProfileViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    recurringTransactionViewModel: TransactionViewModel
 ) {
     val profileState = profileViewModel.profileState.collectAsState().value
 
@@ -61,7 +66,8 @@ fun NavGraph(
             HomeContent(
                 user = user,
                 viewModel = transactionViewModel,
-                assetViewModel = assetViewModel
+                assetViewModel = assetViewModel,
+                navController = navController
             )
         }
 
@@ -92,7 +98,8 @@ fun NavGraph(
                 onSignOut = {
                     authViewModel.signOut()
                 },
-                viewModel = profileViewModel
+                viewModel = profileViewModel,
+                navController = navController
             )
         }
 
@@ -188,6 +195,47 @@ fun NavGraph(
                 },
                 viewModel = profileViewModel
             )
+        }
+
+        composable("add_recurring_income") {
+            AddRecurringTransactionScreen(
+                viewModel = recurringTransactionViewModel,
+                initialType = TransactionType.INCOME,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("add_recurring_expense") {
+            AddRecurringTransactionScreen(
+                viewModel = recurringTransactionViewModel,
+                initialType = TransactionType.EXPENSE,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("recurring_transactions") {
+            RecurringTransactionsScreen(
+                viewModel = recurringTransactionViewModel,
+                onNavigateBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
+
+        composable(
+            route = "edit_recurring_transaction/{transactionId}",
+            arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val transactionId = backStackEntry.arguments?.getString("transactionId")
+            val transaction = recurringTransactionViewModel.recurringTransactions.collectAsState().value
+                .find { it.id == transactionId }
+            
+            if (transaction != null) {
+                EditRecurringTransactionScreen(
+                    transaction = transaction,
+                    viewModel = recurringTransactionViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

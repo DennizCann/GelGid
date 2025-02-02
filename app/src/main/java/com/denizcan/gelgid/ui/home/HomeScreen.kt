@@ -1,8 +1,14 @@
 package com.denizcan.gelgid.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,7 +18,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.*
 import com.denizcan.gelgid.data.model.Asset
-import com.denizcan.gelgid.data.model.Transaction
 import com.denizcan.gelgid.data.model.TransactionType
 import com.denizcan.gelgid.data.model.User
 import com.denizcan.gelgid.navigation.NavGraph
@@ -21,11 +26,11 @@ import com.denizcan.gelgid.ui.transaction.TransactionViewModel
 import com.denizcan.gelgid.ui.asset.AssetViewModel
 import com.denizcan.gelgid.ui.asset.AssetTypeIcon
 import com.denizcan.gelgid.ui.profile.ProfileViewModel
-import java.util.Calendar
-import java.util.Date
 import com.denizcan.gelgid.ui.auth.AuthViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import androidx.navigation.NavController
+import com.denizcan.gelgid.data.model.RecurringTransaction
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,10 +40,12 @@ fun HomeScreen(
     transactionViewModel: TransactionViewModel,
     assetViewModel: AssetViewModel,
     profileViewModel: ProfileViewModel,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    recurringTransactionViewModel: TransactionViewModel
 ) {
     var selectedItem by remember { mutableStateOf(0) }
     val navController = rememberNavController()
+    var showMenu by remember { mutableStateOf(false) }
     
     Scaffold(
         topBar = {
@@ -105,6 +112,75 @@ fun HomeScreen(
                     )
                 }
             }
+        },
+        floatingActionButton = {
+            Column {
+                if (showMenu) {
+                    // Sabit Gelir Ekle
+                    FloatingActionButton(
+                        onClick = { 
+                            showMenu = false
+                            navController.navigate("add_recurring_income")
+                        },
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.TrendingUp, "Sabit Gelir Ekle")
+                            Spacer(Modifier.width(8.dp))
+                            Text("Sabit Gelir Ekle")
+                        }
+                    }
+
+                    // Sabit Gider Ekle
+                    FloatingActionButton(
+                        onClick = { 
+                            showMenu = false
+                            navController.navigate("add_recurring_expense")
+                        },
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.TrendingDown, "Sabit Gider Ekle")
+                            Spacer(Modifier.width(8.dp))
+                            Text("Sabit Gider Ekle")
+                        }
+                    }
+
+                    // Varlık Ekle
+                    FloatingActionButton(
+                        onClick = { 
+                            showMenu = false
+                            navController.navigate(NavigationItem.AddAsset.route)
+                        },
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.AccountBalance, "Varlık Ekle")
+                            Spacer(Modifier.width(8.dp))
+                            Text("Varlık Ekle")
+                        }
+                    }
+                }
+
+                // Ana FAB
+                FloatingActionButton(
+                    onClick = { showMenu = !showMenu }
+                ) {
+                    Icon(
+                        if (showMenu) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = if (showMenu) "Menüyü Kapat" else "Menüyü Aç"
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         NavGraph(
@@ -114,7 +190,8 @@ fun HomeScreen(
             transactionViewModel = transactionViewModel,
             assetViewModel = assetViewModel,
             profileViewModel = profileViewModel,
-            authViewModel = authViewModel
+            authViewModel = authViewModel,
+            recurringTransactionViewModel = recurringTransactionViewModel
         )
     }
 }
@@ -123,7 +200,8 @@ fun HomeScreen(
 fun HomeContent(
     user: User,
     viewModel: TransactionViewModel,
-    assetViewModel: AssetViewModel
+    assetViewModel: AssetViewModel,
+    navController: NavController
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val assets by assetViewModel.assets.collectAsState()
@@ -145,6 +223,9 @@ fun HomeContent(
                         .onFailure {
                             hasError = true
                         }
+                }
+                launch {
+                    viewModel.getRecurringTransactions()
                 }
             }
         } catch (e: Exception) {
@@ -197,8 +278,11 @@ fun HomeContent(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Gelir/Gider Özeti
-                    MonthlyOverview(transactions = transactions)
+                    // Sabit İşlemler Kartı
+                    RecurringTransactionsCard(
+                        recurringTransactions = viewModel.recurringTransactions.collectAsState().value,
+                        onClick = { navController.navigate("recurring_transactions") }
+                    )
                 }
             }
         }
@@ -272,246 +356,76 @@ fun TotalAssetsCard(assets: List<Asset>) {
 }
 
 @Composable
-fun MonthlyOverview(transactions: List<Transaction>) {
-    val currentMonth = Calendar.getInstance().apply {
-        time = Date()
-        set(Calendar.DAY_OF_MONTH, 1)
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-
-    // Tüm zamanlar için toplam
-    val totalIncome = transactions
-        .filter { it.type == TransactionType.INCOME }
-        .sumOf { it.amount }
-    
-    val totalExpense = transactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .sumOf { it.amount }
-    
-    val totalBalance = totalIncome - totalExpense
-
-    // Bu ay için
-    val monthlyTransactions = transactions.filter { it.date >= currentMonth }
-    
-    val monthlyIncome = monthlyTransactions
-        .filter { it.type == TransactionType.INCOME }
-        .sumOf { it.amount }
-    
-    val monthlyExpense = monthlyTransactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .sumOf { it.amount }
-
-    // En çok harcama yapılan kategoriler
-    val topExpenseCategories = monthlyTransactions
-        .filter { it.type == TransactionType.EXPENSE }
-        .groupBy { it.category }
-        .mapValues { it.value.sumOf { transaction -> transaction.amount } }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(3)
-
-    // En çok gelir kategorileri
-    val topIncomeCategories = monthlyTransactions
-        .filter { it.type == TransactionType.INCOME }
-        .groupBy { it.category }
-        .mapValues { it.value.sumOf { transaction -> transaction.amount } }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(3)
-
+fun RecurringTransactionsCard(
+    recurringTransactions: List<RecurringTransaction>,
+    onClick: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // Toplam Bakiye Bölümü
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Toplam Bakiye",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Text(
-                    text = "₺${totalBalance}",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                    ),
-                    color = if (totalBalance >= 0) Color.Green else Color.Red
-                )
-            }
-            
-            Divider(
-                modifier = Modifier
-                    .padding(vertical = 16.dp)
-                    .fillMaxWidth()
-            )
-            
-            // Bu Ay Özeti
             Text(
-                text = "Bu Ay",
+                text = "Sabit İşlemler",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Gelir/Gider Özeti
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val totalIncome = recurringTransactions
+                .filter { it.type == TransactionType.INCOME }
+                .sumOf { it.amount }
+
+            val totalExpense = recurringTransactions
+                .filter { it.type == TransactionType.EXPENSE }
+                .sumOf { it.amount }
+
+            val balance = totalIncome - totalExpense
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Gelir Özeti
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column {
                     Text(
-                        text = "Gelir",
+                        text = "Toplam Gelir",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "₺${monthlyIncome}",
-                        style = MaterialTheme.typography.titleLarge,
+                        text = "₺$totalIncome",
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color.Green
                     )
                 }
 
-                // Dikey Çizgi
-                Divider(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .width(1.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                )
-
-                // Gider Özeti
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column {
                     Text(
-                        text = "Gider",
+                        text = "Toplam Gider",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "₺${monthlyExpense}",
-                        style = MaterialTheme.typography.titleLarge,
+                        text = "₺$totalExpense",
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             }
 
-            // Kategori Özetleri
-            if (topIncomeCategories.isNotEmpty() || topExpenseCategories.isNotEmpty()) {
-                Divider(
-                    modifier = Modifier
-                        .padding(vertical = 16.dp)
-                        .fillMaxWidth()
-                )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Gelir Kategorileri
-                    if (topIncomeCategories.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "En Çok Gelir",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            topIncomeCategories.forEach { (category, amount) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = category,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "₺${amount}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.Green
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Dikey Çizgi (eğer her iki kategori de varsa)
-                    if (topIncomeCategories.isNotEmpty() && topExpenseCategories.isNotEmpty()) {
-                        Divider(
-                            modifier = Modifier
-                                .height(100.dp)
-                                .width(1.dp)
-                                .padding(horizontal = 8.dp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                        )
-                    }
-
-                    // Gider Kategorileri
-                    if (topExpenseCategories.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "En Çok Gider",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-                            
-                            topExpenseCategories.forEach { (category, amount) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 8.dp, top = 4.dp, bottom = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = category,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "₺${amount}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Text(
+                text = "Net Bakiye: ₺$balance",
+                style = MaterialTheme.typography.titleLarge,
+                color = if (balance >= 0) Color.Green else MaterialTheme.colorScheme.error,
+                modifier = Modifier.align(Alignment.End)
+            )
         }
     }
 }
-
-@Composable
-fun ReportsScreen() {
-    // Raporlar ekranı
-    Text(text = "Raporlar")
-} 

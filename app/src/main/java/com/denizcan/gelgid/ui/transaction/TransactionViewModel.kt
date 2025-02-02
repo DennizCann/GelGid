@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.denizcan.gelgid.data.model.Transaction
 import com.denizcan.gelgid.data.model.TransactionType
+import com.denizcan.gelgid.data.model.RecurringTransaction
 import com.denizcan.gelgid.data.repository.FirebaseRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.*
 
 sealed class TransactionState {
     object Initial : TransactionState()
@@ -26,6 +28,9 @@ class TransactionViewModel(
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
     val transactions: StateFlow<List<Transaction>> = _transactions
 
+    private val _recurringTransactions = MutableStateFlow<List<RecurringTransaction>>(emptyList())
+    val recurringTransactions: StateFlow<List<RecurringTransaction>> = _recurringTransactions
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -39,27 +44,21 @@ class TransactionViewModel(
         viewModelScope.launch {
             _transactionState.value = TransactionState.Loading
 
-            val transaction = Transaction(
+            repository.addTransaction(
                 amount = amount,
                 description = description,
                 type = type,
                 category = category,
                 date = date
-            )
-
-            println("Adding transaction: $transaction")
-
-            repository.addTransaction(transaction)
-                .onSuccess {
-                    println("Transaction added successfully: ${it.id}")
-                    _transactionState.value = TransactionState.Success(it)
-                }
-                .onFailure { exception ->
-                    println("Error adding transaction: ${exception.message}")
-                    _transactionState.value = TransactionState.Error(
-                        exception.message ?: "İşlem kaydedilemedi"
-                    )
-                }
+            ).onSuccess { transaction ->
+                println("Transaction added successfully: ${transaction.id}")
+                _transactionState.value = TransactionState.Success(transaction)
+            }.onFailure { exception ->
+                println("Error adding transaction: ${exception.message}")
+                _transactionState.value = TransactionState.Error(
+                    exception.message ?: "İşlem kaydedilemedi"
+                )
+            }
         }
     }
 
@@ -85,6 +84,120 @@ class TransactionViewModel(
                 .onFailure { exception ->
                     // TODO: Hata durumunu handle et
                 }
+        }
+    }
+
+    fun addRecurringTransaction(
+        title: String,
+        amount: Double,
+        type: TransactionType,
+        category: String,
+        dayOfMonth: Int,
+        startDate: Long = System.currentTimeMillis()
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                repository.addRecurringTransaction(
+                    title = title,
+                    amount = amount,
+                    type = type,
+                    category = category,
+                    dayOfMonth = dayOfMonth,
+                    startDate = startDate
+                ).onSuccess {
+                    println("Recurring transaction added successfully")
+                    getRecurringTransactions()
+                    getTransactions()  // Normal işlemleri de güncelle
+                }.onFailure { e ->
+                    println("Error adding recurring transaction: ${e.message}")
+                }
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // Belirli bir tarihten itibaren sabit işlemleri işle
+    private fun processRecurringTransactionsFromDate(startDate: Long) {
+        viewModelScope.launch {
+            repository.processRecurringTransactionsFromDate(startDate)
+            getTransactions()
+        }
+    }
+
+    fun getRecurringTransactions() {
+        viewModelScope.launch {
+            repository.getRecurringTransactions()
+                .onSuccess { transactions ->
+                    _recurringTransactions.value = transactions
+                }
+        }
+    }
+
+    fun deleteRecurringTransaction(id: String) {
+        viewModelScope.launch {
+            repository.deleteRecurringTransaction(id)
+            getRecurringTransactions()
+        }
+    }
+
+    fun checkAndProcessRecurringTransactions() {
+        viewModelScope.launch {
+            // Son 3 ay için işlemleri kontrol et
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.MONTH, -3)  // 3 ay öncesine git
+            calendar.set(Calendar.DAY_OF_MONTH, 1)  // Ayın başına git
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+
+            repository.processRecurringTransactionsFromDate(calendar.timeInMillis)
+                .onSuccess {
+                    println("Recurring transactions processed successfully")
+                    getTransactions()
+                }
+                .onFailure { e ->
+                    println("Error processing recurring transactions: ${e.message}")
+                }
+        }
+    }
+
+    fun updateRecurringTransaction(
+        id: String,
+        title: String,
+        amount: Double,
+        category: String,
+        dayOfMonth: Int
+    ) {
+        viewModelScope.launch {
+            repository.updateRecurringTransaction(
+                id = id,
+                title = title,
+                amount = amount,
+                category = category,
+                dayOfMonth = dayOfMonth
+            )
+            getRecurringTransactions()
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            repository.checkAndCreateCollections()
+            checkAndProcessRecurringTransactions()
+            getRecurringTransactions()
+
+            // Her gün kontrol et
+            while (true) {
+                try {
+                    kotlinx.coroutines.delay(24 * 60 * 60 * 1000) // 24 saat bekle
+                    checkAndProcessRecurringTransactions()
+                } catch (e: Exception) {
+                    println("Daily check error: ${e.message}")
+                }
+            }
         }
     }
 } 

@@ -35,32 +35,12 @@ fun AssetsScreen(
 ) {
     val assets by viewModel.assets.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val scope = rememberCoroutineScope()
-
-    LaunchedEffect(key1 = true) {
-        viewModel.getAssets()
-    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Varlıklarım") }
+                title = { Text("Varlıklar") }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    scope.launch {
-                        viewModel.getAssets()
-                    }
-                    onAddClick()
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Varlık Ekle"
-                )
-            }
         }
     ) { paddingValues ->
         Box(
@@ -91,15 +71,9 @@ fun AssetsScreen(
                             AssetItem(
                                 asset = asset,
                                 onDeleteClick = { 
-                                    scope.launch {
-                                        viewModel.deleteAsset(asset.id)
-                                        viewModel.getAssets()
-                                    }
+                                    viewModel.deleteAsset(asset.id)
                                 },
                                 onEditClick = { 
-                                    scope.launch {
-                                        viewModel.getAssets()
-                                    }
                                     onEditClick(asset.id)
                                 },
                                 onClick = { onItemClick(asset.id) }

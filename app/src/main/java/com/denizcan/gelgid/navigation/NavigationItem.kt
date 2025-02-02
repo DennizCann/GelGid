@@ -66,4 +66,10 @@ sealed class NavigationItem(
     ) {
         fun createRoute(assetId: String) = "asset_detail/$assetId"
     }
+    
+    object RecurringTransactions : NavigationItem(
+        route = "recurring_transactions",
+        title = "Sabit İşlemler",
+        icon = Icons.Default.Schedule
+    )
 } 
