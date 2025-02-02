@@ -30,7 +30,7 @@ sealed class NavigationItem(
     object Reports : NavigationItem(
         route = "reports",
         title = "Raporlar",
-        icon = Icons.Default.Info
+        icon = Icons.Default.Assessment
     )
     
     object Profile : NavigationItem(

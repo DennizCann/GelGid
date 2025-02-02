@@ -21,7 +21,7 @@ import com.denizcan.gelgid.ui.asset.AssetsScreen
 import com.denizcan.gelgid.ui.asset.AddAssetScreen
 import com.denizcan.gelgid.ui.asset.EditAssetScreen
 import com.denizcan.gelgid.ui.asset.AssetDetailScreen
-import com.denizcan.gelgid.ui.home.ReportsScreen
+import com.denizcan.gelgid.ui.reports.ReportsScreen
 import com.denizcan.gelgid.ui.profile.ProfileScreen
 import com.denizcan.gelgid.ui.profile.EditProfileScreen
 import com.denizcan.gelgid.ui.profile.ProfileViewModel
@@ -73,7 +73,9 @@ fun NavGraph(
             TransactionsScreen(viewModel = transactionViewModel)
         }
         composable(NavigationItem.Reports.route) {
-            ReportsScreen()
+            ReportsScreen(
+                viewModel = transactionViewModel
+            )
         }
         composable(NavigationItem.Profile.route) {
             ProfileScreen(
