@@ -1,5 +1,10 @@
 package com.denizcan.gelgid.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -114,71 +119,90 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            Column {
-                if (showMenu) {
-                    // Sabit Gelir Ekle
-                    FloatingActionButton(
-                        onClick = { 
-                            showMenu = false
-                            navController.navigate("add_recurring_income")
-                        },
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.TrendingUp, "Sabit Gelir Ekle")
-                            Spacer(Modifier.width(8.dp))
-                            Text("Sabit Gelir Ekle")
-                        }
-                    }
-
-                    // Sabit Gider Ekle
-                    FloatingActionButton(
-                        onClick = { 
-                            showMenu = false
-                            navController.navigate("add_recurring_expense")
-                        },
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.TrendingDown, "Sabit Gider Ekle")
-                            Spacer(Modifier.width(8.dp))
-                            Text("Sabit Gider Ekle")
-                        }
-                    }
-
-                    // Varlık Ekle
-                    FloatingActionButton(
-                        onClick = { 
-                            showMenu = false
-                            navController.navigate(NavigationItem.AddAsset.route)
-                        },
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.AccountBalance, "Varlık Ekle")
-                            Spacer(Modifier.width(8.dp))
-                            Text("Varlık Ekle")
-                        }
-                    }
-                }
-
-                // Ana FAB
-                FloatingActionButton(
-                    onClick = { showMenu = !showMenu }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.End
                 ) {
-                    Icon(
-                        if (showMenu) Icons.Default.Close else Icons.Default.Add,
-                        contentDescription = if (showMenu) "Menüyü Kapat" else "Menüyü Aç"
-                    )
+                    // Açılır menü
+                    AnimatedVisibility(
+                        visible = showMenu,
+                        enter = fadeIn() + slideInVertically(),
+                        exit = fadeOut() + slideOutVertically()
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Sabit Gelir Ekle
+                            FloatingActionButton(
+                                onClick = { 
+                                    showMenu = false
+                                    navController.navigate("add_recurring_income")
+                                },
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.TrendingUp, "Sabit Gelir Ekle")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Sabit Gelir Ekle")
+                                }
+                            }
+
+                            // Sabit Gider Ekle
+                            FloatingActionButton(
+                                onClick = { 
+                                    showMenu = false
+                                    navController.navigate("add_recurring_expense")
+                                },
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.TrendingDown, "Sabit Gider Ekle")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Sabit Gider Ekle")
+                                }
+                            }
+
+                            // Varlık Ekle
+                            FloatingActionButton(
+                                onClick = { 
+                                    showMenu = false
+                                    navController.navigate(NavigationItem.AddAsset.route)
+                                },
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.AccountBalance, "Varlık Ekle")
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Varlık Ekle")
+                                }
+                            }
+                        }
+                    }
+
+                    // Ana FAB
+                    FloatingActionButton(
+                        onClick = { showMenu = !showMenu }
+                    ) {
+                        Icon(
+                            if (showMenu) Icons.Default.Close else Icons.Default.Add,
+                            contentDescription = if (showMenu) "Menüyü Kapat" else "Menüyü Aç"
+                        )
+                    }
                 }
             }
         }

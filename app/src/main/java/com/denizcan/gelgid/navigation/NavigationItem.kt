@@ -48,7 +48,13 @@ sealed class NavigationItem(
     object AddAsset : NavigationItem(
         route = "add_asset",
         title = "Varlık Ekle",
-        icon = Icons.Default.Add
+        icon = Icons.Default.AccountBalance
+    )
+    
+    object AddRecurringTransaction : NavigationItem(
+        route = "add_recurring_transaction",
+        title = "Sabit İşlem Ekle",
+        icon = Icons.Default.TrendingUp
     )
     
     object EditAsset : NavigationItem(
