@@ -73,10 +73,14 @@ fun EditRecurringTransactionScreen(
             
             OutlinedTextField(
                 value = dayOfMonth,
-                onValueChange = { 
-                    val day = it.toIntOrNull()
-                    if (day != null && day in 1..31) {
-                        dayOfMonth = it
+                onValueChange = { newValue -> 
+                    if (newValue.isEmpty()) {
+                        dayOfMonth = newValue
+                    } else {
+                        val day = newValue.toIntOrNull()
+                        if (day != null && day in 1..31) {
+                            dayOfMonth = newValue
+                        }
                     }
                 },
                 label = { Text("Ayın Günü (1-31)") },

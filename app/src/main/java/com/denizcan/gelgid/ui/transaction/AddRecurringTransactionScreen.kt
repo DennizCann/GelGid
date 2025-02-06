@@ -30,7 +30,7 @@ fun AddRecurringTransactionScreen(
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
-    var dayOfMonth by remember { mutableStateOf("1") }
+    var dayOfMonth by remember { mutableStateOf("") }
     var startDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -96,10 +96,14 @@ fun AddRecurringTransactionScreen(
             
             OutlinedTextField(
                 value = dayOfMonth,
-                onValueChange = { 
-                    val day = it.toIntOrNull()
-                    if (day != null && day in 1..31) {
-                        dayOfMonth = it
+                onValueChange = { newValue -> 
+                    if (newValue.isEmpty()) {
+                        dayOfMonth = newValue
+                    } else {
+                        val day = newValue.toIntOrNull()
+                        if (day != null && day in 1..31) {
+                            dayOfMonth = newValue
+                        }
                     }
                 },
                 label = { Text("Ayın Günü (1-31)") },
